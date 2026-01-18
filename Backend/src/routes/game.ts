@@ -5,12 +5,13 @@ import { storeInstance } from "../store.js";
 const router = Router()
 
 
-router.post('/createGame',(req,res)=>{
+router.get('/createGame',(req,res)=>{
     try {
         // first create socket connection
-        const wsSocket = new SocketManager(router)
-        storeInstance.createGame(wsSocket)
+      
     } catch (error) {
+        console.log(error);
+        
         res.json({
             message:'Internal server error, try after sometime!'
         })
