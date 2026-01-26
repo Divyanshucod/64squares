@@ -5,19 +5,20 @@ class Store {
     constructor() {
         this.Games = [];
     }
-    createGame(playerSocket) {
+    createGame(playerSocket, playerToken) {
         const game = this.Games?.find(game => game.blackPlayerId == undefined);
         if (game) {
-            const playerId = uuidv4();
+            const playerId = playerToken;
             game.addPlayer(playerId, playerSocket);
         }
         else {
             const gameId = uuidv4();
-            const playerId = uuidv4();
+            const playerId = playerToken;
             const newChess = new GameObect(gameId);
             this.Games?.push(newChess);
             newChess.addPlayer(playerId, playerSocket);
         }
+        console.log(this.Games);
     }
     removeGame(gameId) {
         const remainingGames = this.Games?.filter(game => game.gameId != gameId);

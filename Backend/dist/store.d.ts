@@ -3,7 +3,7 @@ import type { SocketManager } from "./socketServer.js";
 declare class Store {
     Games: GameObect[] | undefined;
     constructor();
-    createGame(playerSocket: SocketManager): void;
+    createGame(playerSocket: SocketManager, playerToken: string): void;
     removeGame(gameId: string): void;
 }
 export declare const storeInstance: Store;

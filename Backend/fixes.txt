@@ -1,0 +1,6 @@
+1. Use the unique Id which was assigned to the user while registering to the game, don't create new one and also we can't depend up socket
+connections as they are temporary. : fixed
+2. Create game user based on their Ids (logic to send moves and create multiple game instance) : Done
+3. try all moves and see if they are working as expected : Done (some part)
+4. Join as spectator : DDone
+5. try to send chats and sync that to others : Working
