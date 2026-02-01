@@ -1,10 +1,15 @@
 import WebSocket from "ws";
+import { storeInstance } from "./store.js";
 
 export class SocketManager {
-  socket: WebSocket | undefined;
+  socket: WebSocket;
+  userId: string;
 
-  constructor(ws:WebSocket) {
+  gameId?: string;
+  role?: "white" | "black" | "spectator";
+  constructor(ws:WebSocket,userId:string) {
     this.socket = ws
+    this.userId = userId
   }
 
   send(data: any) {
@@ -24,5 +29,11 @@ export class SocketManager {
         
       })
     }
+  }
+
+   handleDisconnect() {
+    if (!this.gameId) return;
+    const game = storeInstance.getGame(this.gameId);
+    game?.resumeGame(this);
   }
 }

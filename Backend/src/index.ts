@@ -5,6 +5,7 @@ import { WebSocketServer } from "ws";
 import { SocketManager } from "./socketServer.js";
 import { storeInstance } from "./store.js";
 import { Events } from "./gameManager.js";
+import { handleMessage } from "./webSocket/handleMessage.js";
 
 const PORT = 3000;
 const app = express();
@@ -15,81 +16,45 @@ app.use("/game", GameRouter);
 // websocket server creation
 
 wss.on("connection", (ws, req) => {
-  // authenticate
-   authenticate(ws,req)
+  const socketManager = authenticate(ws, req);
+  if (!socketManager) return;
+
   ws.on("message", (message, isBinary) => {
-      if (isBinary) {
-        console.log("Binary message, ignoring or handling separately");
-        return;
-      }
+    if (isBinary) return;
 
+    try {
       const data = JSON.parse(message.toString());
-      console.log(data);
+      handleMessage(socketManager, data);
+    } catch {
+      socketManager.send({
+        event: "ERROR",
+        message: "Invalid JSON"
+      });
+    }
+  });
 
-      const game = storeInstance.Games?.find(game => game.gameId == data.gameId);
-      if(!game){
-        ws.send('No such game exists');
-      }
-      if(data.event == Events.Resume){
-      }
-      if(data.event == Events.Move){
-         game?.makeMove({
-          move:data.move,
-          turn:data.turn,
-          timestamp:data.timestamp
-         })
-      }
-      else if(data.event == 'Chat'){
-         game?.blackPlayerSocket?.send({
-          event:Events.Chat,
-          message:data.message
-         })
-          game?.whitePlayerSocket?.send({
-          event:Events.Chat,
-          message:data.message
-         })
-          game?.spectators.forEach(spectator => spectator.send({
-          event:Events.Chat,
-          message:data.message
-         }))
-      }
-    });
-  ws.on("close", (data) => {
-    console.log(data + "Connection closed!");
-    disConnected(ws, data)
+  ws.on("close", () => {
+    socketManager.handleDisconnect();
   });
 });
+
 app.listen(PORT, () => {
   console.log("Server is running on port:" + PORT);
 });
 
 function authenticate(ws:any,req:any){
   const fullUrl = new URL(req.url!, `http://${req.headers.host}`);
-  const token = fullUrl.searchParams.get('token') || undefined
-  const role = fullUrl.searchParams.get('role') || undefined
-  const gameId = fullUrl.searchParams.get('gameId') || undefined
-  if(!token || !role){ 
-     ws.close(1008, "Token and role is required");
-    return;}
-  if(role == 'spectator' && (gameId != undefined || gameId != '')){
-     // find the game in which he/she wants to join
-     const game = storeInstance.Games?.find(game => game.gameId == gameId);
-    if (!game) {
-    ws.close(1008, "No such game exits"); // Policy Violation
-    return;
-  }
-     const socketManager = new SocketManager(ws);
-     game.addSpectators(socketManager)
-  }
-  else{
-    const socketManager = new SocketManager(ws);
-  storeInstance.createGame(socketManager,token);
+  const token = fullUrl.searchParams.get('playerId') || undefined
+  if(token){
+  const socketManager = new SocketManager(ws,token);
+  return socketManager;
+  }else{
+    ws.close(1008,"Token is required!")
+    return undefined;
   }
 }
 function disConnected(ws:any,req:any){
   const fullUrl = new URL(req.url!, `http://${req.headers.host}`);
-  const token = fullUrl.searchParams.get('token') || undefined
-  const role = fullUrl.searchParams.get('role') || undefined
 
   // find a game first
   const game = storeInstance.Games?.find(game => game.spectators.forEach(spectator => spectator.socket == ws))

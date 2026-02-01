@@ -14,7 +14,9 @@ export enum Events {
   Resume = "Resume",
   Chat = "Chat",
   Checked = "Checked",
-  Common = "Common"
+  Common = "Common",
+  New_Game = "New_Game",
+  Join_Game = "Join_Game"
 }
 export class GameObect {
   gameId: string | undefined;
@@ -26,10 +28,12 @@ export class GameObect {
   Chessobject: Chess;
   turn: Turn | undefined;
   lastMoveTimestamp: number | undefined;
-  clock:{
-    BLACK:number,
-    WHITE:number
-  } | undefined
+  clock:
+    | {
+        BLACK: number;
+        WHITE: number;
+      }
+    | undefined;
   constructor(gameId: string) {
     this.gameId = gameId;
     this.spectators = [];
@@ -43,16 +47,16 @@ export class GameObect {
       this.turn = Turn.WHITE;
       playerSocket.send({
         event: Events.Waiting_Opponent,
-        message:"Waiting for opponent... "
+        message: "Waiting for opponent... ",
       });
     } else {
       this.blackPlayerId = playerId;
       this.blackPlayerSocket = playerSocket;
-      this.lastMoveTimestamp =  Date.now()
+      this.lastMoveTimestamp = Date.now();
       this.clock = {
         BLACK: 300000,
-        WHITE: 300000
-      }
+        WHITE: 300000,
+      };
       playerSocket.send({
         event: Events.Create_Board,
         gameId: this.gameId,
@@ -81,113 +85,49 @@ export class GameObect {
       turn: this.turn,
       clock: this.clock,
       timestamp: Date.now(),
-      spectatorCount:this.spectators.length
+      spectatorCount: this.spectators.length,
     });
-    this.spectators.forEach(specator => specator.send({event: Events.Common,spectatorCount:this.spectators.length}))
-    this.blackPlayerSocket?.send({event: Events.Common,spectatorCount:this.spectators.length})
-    this.whitePlayerSocket?.send({event: Events.Common,spectatorCount:this.spectators.length})
+    this.spectators.forEach((specator) =>
+      specator.send({
+        event: Events.Common,
+        spectatorCount: this.spectators.length,
+      }),
+    );
+    this.blackPlayerSocket?.send({
+      event: Events.Common,
+      spectatorCount: this.spectators.length,
+    });
+    this.whitePlayerSocket?.send({
+      event: Events.Common,
+      spectatorCount: this.spectators.length,
+    });
   }
 
-  makeMove({move:{from, to},turn,timestamp}: {move: {from: string, to: string},turn:Turn,timestamp:number}) {
+  makeMove({
+    move: { from, to },
+    turn,
+    timestamp,
+  }: {
+    move: { from: string; to: string };
+    turn: Turn;
+    timestamp: number;
+  }) {
     try {
-      this.Chessobject.move({from,to});
+      this.Chessobject.move({ from, to });
       // notify both with the current move {from: to:}
-      this.calculateRemainigTime(turn,timestamp);
+      this.calculateRemainigTime(turn, timestamp);
       if (this.Chessobject.inCheck()) {
         // notify the opposite color that he/she got checked
-        if (turn == Turn.BLACK) {
-          this.whitePlayerSocket?.send({
-            event: Events.Checked,
-            gameId: this.gameId,
-            turn: Turn.WHITE,
-            clock:this
-              .clock
-            ,
-            timestamp: Date.now(),
-            spectatorCount:this.spectators.length
-          });
-        } else {
-          this.blackPlayerSocket?.send({
-            event: Events.Move,
-            gameId: this.gameId,
-            turn: Turn.BLACK,
-            clock: this.clock,
-            timestamp: Date.now(),
-            spectatorCount:this.spectators.length
-          });
-        }
-        // spectators
-          this.spectators.forEach((spectator) =>
-            spectator.send({
-              event: Events.Move,
-              gameId: this.gameId,
-              turn: this.turn,
-              clock: this.clock,
-              timestamp: Date.now(),
-              spectatorCount:this.spectators.length
-            }),
-          );
+        this.broadCastSpecific(turn, Events.Checked);
+        return;
       }
       if (this.Chessobject.isGameOver()) {
         // current person won the  match
-        if (Turn.BLACK == turn) {
-          this.whitePlayerSocket?.send({
-            event: Events.End_Game,
-            gameId: this.gameId,
-            turn: Turn.WHITE,
-            clock:this.clock,
-            timestamp: Date.now(),
-            spectatorCount:this.spectators.length
-          });
-        } else {
-          this.blackPlayerSocket?.send({
-            event:Events.End_Game,
-            gameId: this.gameId,
-            turn: Turn.BLACK,
-            clock: this.clock,
-            timestamp: Date.now(),
-            spectatorCount:this.spectators.length
-          });
-        }
-        // spectators
-          this.spectators.forEach((spectator) =>
-            spectator.send({
-              event: Events.End_Game,
-              gameId: this.gameId,
-              turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
-              clock:this.clock,
-              timestamp: Date.now(),
-              spectatorCount:this.spectators.length
-            }),
-          );
+        this.broadCastSpecific(turn, Events.End_Game);
+        return;
+      } else {
+        this.broadCast(turn, Events.Move);
       }
-      this.blackPlayerSocket?.send({
-        event:Events.Move,
-        gameId: this.gameId,
-        turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
-        clock: this.clock,
-        timestamp: Date.now(),
-        spectatorCount:this.spectators.length
-      });
-      this.whitePlayerSocket?.send({
-        event:Events.Move,
-        gameId: this.gameId,
-         turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
-        clock: this.clock,
-        timestamp: Date.now(),
-        spectatorCount:this.spectators.length
-      });
-      // spectators
-      this.spectators.forEach((spectator) =>
-        spectator.send({
-          event: Events.Move,
-          gameId: this.gameId,
-           turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
-          clock:this.clock,
-          timestamp: Date.now(),
-          spectatorCount:this.spectators.length
-        }),
-      );
     } catch (error) {
       if (Turn.BLACK == turn) {
         // notify the opposite made a illegal move
@@ -212,41 +152,119 @@ export class GameObect {
     }
   }
 
-  calculateRemainigTime(turn:Turn,timestamp:number){
-      if(turn == Turn.BLACK && this.lastMoveTimestamp){
-         const remainingTime = this.clock ? this.clock.BLACK - (timestamp-this.lastMoveTimestamp) : 0;
-         this.clock = {
-          BLACK : remainingTime,
-          WHITE : this.clock?.WHITE ?? 30000
-         }
-      }
-      else if(turn == Turn.WHITE && this.lastMoveTimestamp){
-         const remainingTime = this.clock ? this.clock.WHITE - (timestamp-this.lastMoveTimestamp) : 0;
-         this.clock = {
-          BLACK : this.clock?.BLACK ?? 30000,
-          WHITE : remainingTime
-         }
-      }
+  calculateRemainigTime(turn: Turn, timestamp: number) {
+    if (turn == Turn.BLACK && this.lastMoveTimestamp) {
+      const remainingTime = this.clock
+        ? this.clock.BLACK - (timestamp - this.lastMoveTimestamp)
+        : 0;
+      this.clock = {
+        BLACK: remainingTime,
+        WHITE: this.clock?.WHITE ?? 30000,
+      };
+    } else if (turn == Turn.WHITE && this.lastMoveTimestamp) {
+      const remainingTime = this.clock
+        ? this.clock.WHITE - (timestamp - this.lastMoveTimestamp)
+        : 0;
+      this.clock = {
+        BLACK: this.clock?.BLACK ?? 30000,
+        WHITE: remainingTime,
+      };
+    }
+  }
+  broadCastSpecific(turn: Turn, event: Events) {
+    if (turn == Turn.BLACK) {
+      this.whitePlayerSocket?.send({
+        event,
+        gameId: this.gameId,
+        turn: Turn.WHITE,
+        clock: this.clock,
+        timestamp: Date.now(),
+        spectatorCount: this.spectators.length,
+      });
+    } else {
+      this.blackPlayerSocket?.send({
+        event,
+        gameId: this.gameId,
+        turn: Turn.BLACK,
+        clock: this.clock,
+        timestamp: Date.now(),
+        spectatorCount: this.spectators.length,
+      });
+    }
+    // spectators
+    this.spectators.forEach((spectator) =>
+      spectator.send({
+        event: Events.Move,
+        gameId: this.gameId,
+        turn: this.turn,
+        clock: this.clock,
+        timestamp: Date.now(),
+        spectatorCount: this.spectators.length,
+      }),
+    );
+  }
+  broadCast(turn: Turn, event: Events) {
+    this.blackPlayerSocket?.send({
+      event: Events.Move,
+      gameId: this.gameId,
+      turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+      clock: this.clock,
+      timestamp: Date.now(),
+      spectatorCount: this.spectators.length,
+    });
+    this.whitePlayerSocket?.send({
+      event: Events.Move,
+      gameId: this.gameId,
+      turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+      clock: this.clock,
+      timestamp: Date.now(),
+      spectatorCount: this.spectators.length,
+    });
+    // spectators
+    this.spectators.forEach((spectator) =>
+      spectator.send({
+        event: Events.Move,
+        gameId: this.gameId,
+        turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+        clock: this.clock,
+        timestamp: Date.now(),
+        spectatorCount: this.spectators.length,
+      }),
+    );
+  }
+  private sendToAll(payload: any) {
+  this.whitePlayerSocket?.send(payload);
+  this.blackPlayerSocket?.send(payload);
+  this.spectators.forEach(s => s.send(payload));
+}
+  resumeGame(player: SocketManager) {
+    if (player.userId == this.whitePlayerId) { // how do i disconnect here? what i can do is that before calling this function i will check the playerId before only.
+      this.whitePlayerSocket = player;
+      this.whitePlayerSocket.send({
+        event: Events.Resume,
+        gameId: this.gameId,
+        boardFEN: this.Chessobject.fen(),
+        turn: this.turn,
+        clock: this.clock,
+        timestamp: Date.now(),
+      });
+    } else if(player.userId == this.whitePlayerId) {
+      this.blackPlayerSocket = player;
+      this.blackPlayerSocket.send({
+        event: Events.Resume,
+        gameId: this.gameId,
+        boardFEN: this.Chessobject.fen(),
+        turn: this.turn,
+        clock: this.clock,
+        timestamp: Date.now(),
+      });
+    }
+    else{
+      return
+    }
   }
 
-  resumeGame(playerId:string,playerSocket:SocketManager){
-     if(playerId == this.whitePlayerId){
-      this.whitePlayerSocket = playerSocket
-      this.whitePlayerSocket.send( {event: Events.Resume,
-      gameId: this.gameId,
-      boardFEN: this.Chessobject.fen(),
-      turn: this.turn,
-      clock: this.clock,
-      timestamp: Date.now()})
-     }else{
-      this.blackPlayerSocket = playerSocket
-      this.blackPlayerSocket.send( {event: Events.Resume,
-      gameId: this.gameId,
-      boardFEN: this.Chessobject.fen(),
-      turn: this.turn,
-      clock: this.clock,
-      timestamp: Date.now()})
-     }
+  sendChat(player:SocketManager){
 
   }
 }
