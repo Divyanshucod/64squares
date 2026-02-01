@@ -4,6 +4,7 @@ import { GameRouter } from "./routes/game.js";
 import { WebSocketServer } from "ws";
 import { SocketManager } from "./socketServer.js";
 import { storeInstance } from "./store.js";
+import { Events } from "./gameManager.js";
 const PORT = 3000;
 const app = express();
 app.use(cors());
@@ -12,6 +13,49 @@ const wss = new WebSocketServer({ port: 3001 });
 app.use("/game", GameRouter);
 // websocket server creation
 wss.on("connection", (ws, req) => {
+    // authenticate
+    authenticate(ws, req);
+    ws.on("message", (message, isBinary) => {
+        if (isBinary) {
+            console.log("Binary message, ignoring or handling separately");
+            return;
+        }
+        const data = JSON.parse(message.toString());
+        console.log(data);
+        const game = storeInstance.Games?.find(game => game.gameId == data.gameId);
+        if (!game) {
+            ws.send('No such game exists');
+        }
+        if (data.event == Events.Move) {
+            game?.makeMove({
+                move: data.move,
+                turn: data.turn,
+                timestamp: data.timestamp
+            });
+        }
+        else if (data.event == 'Chat') {
+            game?.blackPlayerSocket?.send({
+                event: Events.Chat,
+                message: data.message
+            });
+            game?.whitePlayerSocket?.send({
+                event: Events.Chat,
+                message: data.message
+            });
+            game?.spectators.forEach(spectator => spectator.send({
+                event: Events.Chat,
+                message: data.message
+            }));
+        }
+    });
+    ws.on("close", (data) => {
+        console.log(data + "Connection closed!");
+    });
+});
+app.listen(PORT, () => {
+    console.log("Server is running on port:" + PORT);
+});
+function authenticate(ws, req) {
     const fullUrl = new URL(req.url, `http://${req.headers.host}`);
     const token = fullUrl.searchParams.get('token') || undefined;
     const role = fullUrl.searchParams.get('role') || undefined;
@@ -20,7 +64,7 @@ wss.on("connection", (ws, req) => {
         ws.close(1008, "Token and role is required");
         return;
     }
-    if (role == 'spectator' && gameId != undefined) {
+    if (role == 'spectator' && (gameId != undefined || gameId != '')) {
         // find the game in which he/she wants to join
         const game = storeInstance.Games?.find(game => game.gameId == gameId);
         if (!game) {
@@ -34,32 +78,9 @@ wss.on("connection", (ws, req) => {
         const socketManager = new SocketManager(ws);
         storeInstance.createGame(socketManager, token);
     }
-    ws.on("message", (message, isBinary) => {
-        if (isBinary) {
-            console.log("Binary message, ignoring or handling separately");
-            return;
-        }
-        const data = JSON.parse(message.toString());
-        console.log(data);
-        const game = storeInstance.Games?.find(game => game.blackPlayerSocket?.socket == ws || game.whitePlayerSocket?.socket == ws);
-        const anySpectator = storeInstance.Games?.find(game => game.spectators.find(spectator => spectator.socket == ws));
-        if (!game && data.type == 'Move') {
-            ws.send('No such game exists');
-        }
-        if (data.type == 'Move') {
-            game?.makeMove(data.move, data.color);
-        }
-        else if (data.type == 'Chat' && (anySpectator != undefined || game != undefined)) {
-            game?.blackPlayerSocket?.send("Message", data.message, "some message");
-            game?.whitePlayerSocket?.send("Message", data.message, "some message");
-            game?.spectators.forEach(spectator => spectator.send("Message", data.message, "some message"));
-        }
-    });
-    ws.on("close", (data) => {
-        console.log(data + "Connection closed!");
-    });
-});
-app.listen(PORT, () => {
-    console.log("Server is running on port:" + PORT);
-});
+}
+// resume the game
+// database conection and store  moves there
+// better structure and utilization
+// update the turn
 //# sourceMappingURL=index.js.map

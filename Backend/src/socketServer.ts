@@ -7,13 +7,11 @@ export class SocketManager {
     this.socket = ws
   }
 
-  send(type: string, data: any, message: string) {
+  send(data: any) {
     if (this.socket) {
-       this.socket.send(JSON.stringify({
-        data,
-        message,
-        type
-       }))
+       this.socket.send(JSON.stringify(
+        data
+       ))
     }
   }
 

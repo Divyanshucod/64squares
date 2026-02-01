@@ -4,13 +4,9 @@ export class SocketManager {
     constructor(ws) {
         this.socket = ws;
     }
-    send(type, data, message) {
+    send(data) {
         if (this.socket) {
-            this.socket.send(JSON.stringify({
-                data,
-                message,
-                type
-            }));
+            this.socket.send(JSON.stringify(data));
         }
     }
     receive() {

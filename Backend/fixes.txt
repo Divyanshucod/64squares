@@ -4,3 +4,43 @@ connections as they are temporary. : fixed
 3. try all moves and see if they are working as expected : Done (some part)
 4. Join as spectator : DDone
 5. try to send chats and sync that to others : Working
+
+Tomorrow work:
+1. Structure the code in better why and think of better solution for are functionalities 
+2. Fix chat issue how you can make sure name you will get of a spectator and players
+3. check all moves if they are working fine 
+4. Store moves in DB (Directly for now)
+5. create a proper function for sending or receiving moves
+6. think of a proper schema for to send or receive message, move, chat etc
+7. Quest mode when user is not login but still can watch games and play but moves will not store in DB
+8. Webrtc connection how to establish or make stable also send to all spectators
+9. Resume/reconnection functionaliity under 10s (think of time watch stop till the player comes and make the time watch sync with the game)
+
+Day after tomorrow (Basic frontend for testing)
+
+
+how the clients -> server schema look
+{
+    "event":"move",
+    "move":{"from":"some value", to:"some value"},
+    "timeStamp":
+}
+Server -> clients
+{
+  "event": "move",
+  "gameId": "g123",
+  "move": {
+    "from": "a2",
+    "to": "a4",
+    "piece": "P",
+    "color": "WHITE",
+    "promotion": null
+  },
+  "boardFEN": "rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1",
+  "clock": {
+    "WHITE": 295000,
+    "BLACK": 300000
+  },
+  "moveNumber": 1,
+  "timestamp": 1737890002
+}

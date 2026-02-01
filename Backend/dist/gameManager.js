@@ -1,4 +1,21 @@
-import { Chess } from "chess.js";
+import { Chess, WHITE } from "chess.js";
+export var Turn;
+(function (Turn) {
+    Turn["WHITE"] = "WHITE";
+    Turn["BLACK"] = "BLACK";
+})(Turn || (Turn = {}));
+export var Events;
+(function (Events) {
+    Events["Waiting_Opponent"] = "Waiting_Opponent";
+    Events["Start_Game"] = "Start_Game";
+    Events["End_Game"] = "End_Game";
+    Events["Move"] = "Move";
+    Events["Illegal_Move"] = "Illegal_Movee";
+    Events["Create_Board"] = "Create_Board";
+    Events["Resume"] = "Resume";
+    Events["Chat"] = "Chat";
+    Events["Checked"] = "Checked";
+})(Events || (Events = {}));
 export class GameObect {
     gameId;
     whitePlayerId;
@@ -7,6 +24,9 @@ export class GameObect {
     blackPlayerSocket;
     spectators;
     Chessobject;
+    turn;
+    lastMoveTimestamp;
+    clock;
     constructor(gameId) {
         this.gameId = gameId;
         this.spectators = [];
@@ -16,63 +36,176 @@ export class GameObect {
         if (!this.whitePlayerId) {
             this.whitePlayerId = playerId;
             this.whitePlayerSocket = playerSocket;
-            playerSocket.send("createGame", this.Chessobject.board, "Wait for opponent to join the game..");
+            this.turn = Turn.WHITE;
+            playerSocket.send({
+                event: Events.Waiting_Opponent,
+                message: "Waiting for opponent... "
+            });
         }
         else {
             this.blackPlayerId = playerId;
             this.blackPlayerSocket = playerSocket;
-            playerSocket.send("start", this.Chessobject.board, "Wait for white to make a move");
-            this.whitePlayerSocket?.send("createGame", this.Chessobject.board, "White make a  move");
+            this.lastMoveTimestamp = Date.now();
+            this.clock = {
+                BLACK: 300000,
+                WHITE: 300000
+            };
+            playerSocket.send({
+                event: Events.Create_Board,
+                gameId: this.gameId,
+                boardFEN: this.Chessobject.fen(),
+                turn: this.turn,
+                clock: this.clock,
+                timestamp: Date.now(),
+            });
+            this.whitePlayerSocket?.send({
+                event: Events.Create_Board,
+                gameId: this.gameId,
+                boardFEN: this.Chessobject.fen(),
+                turn: this.turn,
+                clock: this.clock,
+                timestamp: Date.now(),
+            });
         }
     }
     addSpectators(spectator) {
         this.spectators?.push(spectator);
-        spectator.send("board_creation", this.Chessobject.board, "Creating board...");
+        spectator.send({
+            event: "create-board",
+            gameId: `${this.gameId}`,
+            boardFEN: `${this.Chessobject.fen()}`,
+            turn: `${this.turn}`,
+            clock: {
+                WHITE: 300000,
+                BLACK: 300000,
+            },
+            timestamp: `${Date.now()}`,
+        });
     }
-    makeMove(move, color) {
+    makeMove({ move: { from, to }, turn, timestamp }) {
         try {
-            this.Chessobject.move(move);
+            this.Chessobject.move({ from, to });
             // notify both with the current move {from: to:}
+            this.calculateRemainigTime(turn, timestamp);
             if (this.Chessobject.inCheck()) {
-                // notify the opposite color that he/she go checked
-                if (color == 'BLACK') {
-                    this.whitePlayerSocket?.send("move", move, "check..");
-                    // spectators
-                    this.spectators.forEach((spectator) => spectator.send("move", move, "check.."));
+                // notify the opposite color that he/she got checked
+                if (turn == Turn.BLACK) {
+                    this.whitePlayerSocket?.send({
+                        event: Events.Checked,
+                        gameId: this.gameId,
+                        turn: Turn.WHITE,
+                        clock: this
+                            .clock,
+                        timestamp: Date.now(),
+                    });
                 }
                 else {
-                    this.blackPlayerSocket?.send("move", move, "check..");
-                    // spectators
-                    this.spectators.forEach((spectator) => spectator.send("move", move, "check.."));
+                    this.blackPlayerSocket?.send({
+                        event: Events.Move,
+                        gameId: this.gameId,
+                        turn: Turn.BLACK,
+                        clock: this.clock,
+                        timestamp: Date.now(),
+                    });
                 }
+                // spectators
+                this.spectators.forEach((spectator) => spectator.send({
+                    event: Events.Move,
+                    gameId: this.gameId,
+                    turn: this.turn,
+                    clock: this.clock,
+                    timestamp: Date.now(),
+                }));
             }
             if (this.Chessobject.isGameOver()) {
                 // current person won the  match
-                if (color == 'BLACK') {
-                    this.whitePlayerSocket?.send("end", move, "white won..");
-                    // spectators
-                    this.spectators.forEach((spectator) => spectator.send("end", move, "black won.."));
+                if (Turn.BLACK == turn) {
+                    this.whitePlayerSocket?.send({
+                        event: Events.End_Game,
+                        gameId: this.gameId,
+                        turn: Turn.WHITE,
+                        clock: this.clock,
+                        timestamp: Date.now(),
+                    });
                 }
                 else {
-                    this.blackPlayerSocket?.send("move", move, "check..");
-                    // spectators
-                    this.spectators.forEach((spectator) => spectator.send("move", move, "check.."));
+                    this.blackPlayerSocket?.send({
+                        event: Events.End_Game,
+                        gameId: this.gameId,
+                        turn: Turn.BLACK,
+                        clock: this.clock,
+                        timestamp: Date.now(),
+                    });
                 }
+                // spectators
+                this.spectators.forEach((spectator) => spectator.send({
+                    event: Events.End_Game,
+                    gameId: this.gameId,
+                    turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+                    clock: this.clock,
+                    timestamp: Date.now(),
+                }));
             }
-            this.blackPlayerSocket?.send("move", move, "move made..");
-            this.whitePlayerSocket?.send("move", move, "move made..");
+            this.blackPlayerSocket?.send({
+                event: Events.Move,
+                gameId: this.gameId,
+                turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+                clock: this.clock,
+                timestamp: Date.now(),
+            });
+            this.whitePlayerSocket?.send({
+                event: Events.Move,
+                gameId: this.gameId,
+                turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+                clock: this.clock,
+                timestamp: Date.now(),
+            });
             // spectators
-            this.spectators.forEach((spectator) => spectator.send("move", move, "move made.."));
+            this.spectators.forEach((spectator) => spectator.send({
+                event: Events.Move,
+                gameId: this.gameId,
+                turn: turn == Turn.BLACK ? Turn.WHITE : Turn.BLACK,
+                clock: this.clock,
+                timestamp: Date.now(),
+            }));
         }
         catch (error) {
-            if (color == "BLACK") {
+            if (Turn.BLACK == turn) {
                 // notify the opposite made a illegal move
-                this.blackPlayerSocket?.send("illegal_move", move, "this move is not valid..");
+                this.blackPlayerSocket?.send({
+                    event: Events.Illegal_Move,
+                    gameId: this.gameId,
+                    turn: this.turn,
+                    clock: this.clock,
+                    timestamp: Date.now(),
+                });
             }
             else {
-                this.whitePlayerSocket?.send("illegal_move", move, "this move is not valid..");
+                this.whitePlayerSocket?.send({
+                    event: Events.Illegal_Move,
+                    gameId: this.gameId,
+                    turn: this.turn,
+                    clock: this.clock,
+                    timestamp: Date.now(),
+                });
                 // notify the opposite made a illegal move
             }
+        }
+    }
+    calculateRemainigTime(turn, timestamp) {
+        if (turn == Turn.BLACK && this.lastMoveTimestamp) {
+            const remainingTime = this.clock ? this.clock.BLACK - (timestamp - this.lastMoveTimestamp) : 0;
+            this.clock = {
+                BLACK: remainingTime,
+                WHITE: this.clock?.WHITE ?? 30000
+            };
+        }
+        else if (turn == Turn.WHITE && this.lastMoveTimestamp) {
+            const remainingTime = this.clock ? this.clock.WHITE - (timestamp - this.lastMoveTimestamp) : 0;
+            this.clock = {
+                BLACK: this.clock?.BLACK ?? 30000,
+                WHITE: remainingTime
+            };
         }
     }
 }
