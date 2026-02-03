@@ -8,7 +8,7 @@ export function handleMessage(
 ) {
   const { gameId, event } = data;
 
-  if(!gameId && event == Events.New_Game){
+  if(!gameId && event == Events.NEW_GAME){
      storeInstance.createGame(socketManager)
   }
   if (!gameId) {
@@ -29,23 +29,23 @@ export function handleMessage(
   }
 
   switch (event) {
-    case Events.Resume:
+    case Events.RESUME:
       game.resumeGame(socketManager,gameId);
       break;
 
-    case Events.Move:
+    case Events.MOVE:
       game.makeMove(socketManager, data.move,data.timestamp);
       break;
 
-    case Events.Chat:
+    case Events.CHAT:
       game.sendChat(socketManager, data.message);
       break;
     
-    case Events.Join_Game:
+    case Events.JOIN_GAME:
       game.addPlayer(socketManager);
       break;
 
-    case Events.Spectator:
+    case Events.SPECTATOR:
       game.addSpectators(socketManager);
       break;
       

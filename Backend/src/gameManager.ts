@@ -1,25 +1,36 @@
 import { Chess } from "chess.js";
 import { SocketManager } from "./socketServer.js";
+type PlayerColor = "white" | "black";
 export enum Turn {
   WHITE = "WHITE",
   BLACK = "BLACK",
 }
+const GAME_TIME = 300_000;
+const DISCONNECT_TIMEOUT = 60_000;
+
 export enum Events {
-  Waiting_Opponent = "Waiting_Opponent",
-  Start_Game = "Start_Game",
-  End_Game = "End_Game",
-  Move = "Move",
-  Illegal_Move = "Illegal_Movee",
-  Create_Board = "Create_Board",
-  Resume = "Resume",
-  Chat = "Chat",
-  Checked = "Checked",
-  Common = "Common",
-  New_Game = "New_Game",
-  Join_Game = "Join_Game",
+  WAITING_OPPONENT = "WAITING_OPPONENT",
+  START_GAME = "START_GAME",
+  END_GAME = "END_GAME",
+  MOVE = "MOVE",
+  ILLIGAL_MOVE = "ILLIGAL_MOVE",
+  CREATE_BOARD = "CREATE_BOARD",
+  RESUME = "RESUME",
+  CHAT = "CHAT",
+  CHECKED = "CHECKED",
+  COMMON = "COMMON",
+  NEW_GAME = "NEW_GAME",
+  JOIN_GAME = "JOIN_GAME",
   PLAYER_DISCONNECTED = "PLAYER_DISCONNECTED",
-  Spectator = "Spectator"
+  PLAYER_RECONNECTED = "PLAYER_RECONNECTED",
+  SPECTATOR = "SPECTATOR",
 }
+type DisconnectInfo = {
+  playerId: string;
+  timeOutId: NodeJS.Timeout;
+  deadLine: number;
+  color: string;
+};
 export class GameObect {
   gameId: string | undefined;
   whitePlayerId: string | undefined;
@@ -36,63 +47,18 @@ export class GameObect {
         WHITE: number;
       }
     | undefined;
+  disconnectedPlayerInfo?: DisconnectInfo | undefined;
   constructor(gameId: string) {
     this.gameId = gameId;
     this.spectators = [];
     this.Chessobject = new Chess();
   }
-
-  addPlayer(playerSocket: SocketManager) {
-    if(this.whitePlayerId && this.blackPlayerId){
-      playerSocket.send({
-        event:Events.Common,
-        message:"Game is full!"
-      })
-    }
-    if (!this.whitePlayerId) {
-      playerSocket.gameId = this.gameId!;
-      playerSocket.role = 'white';
-      this.whitePlayerId = playerSocket.userId;
-      this.whitePlayerSocket = playerSocket;
-      this.turn = Turn.WHITE;
-      playerSocket.send({
-        event: Events.Waiting_Opponent,
-        message: "Waiting for opponent... ",
-      });
-    } else {
-      playerSocket.gameId = this.gameId!;
-      playerSocket.role = 'white';
-      this.blackPlayerId = playerSocket.userId;
-      this.blackPlayerSocket = playerSocket;
-      this.lastMoveTimestamp = Date.now();
-      this.clock = {
-        BLACK: 300000,
-        WHITE: 300000,
-      };
-      playerSocket.send({
-        event: Events.Create_Board,
-        gameId: this.gameId,
-        boardFEN: this.Chessobject.fen(),
-        turn: this.turn,
-        clock: this.clock,
-        timestamp: Date.now(),
-      });
-      this.whitePlayerSocket?.send({
-        event: Events.Create_Board,
-        gameId: this.gameId,
-        boardFEN: this.Chessobject.fen(),
-        turn: this.turn,
-        clock: this.clock,
-        timestamp: Date.now(),
-      });
-    }
+  private getPlayerSocket(color: PlayerColor) {
+    return color === "white" ? this.whitePlayerSocket : this.blackPlayerSocket;
   }
-
-  addSpectators(spectator: SocketManager) {
-    spectator.role = 'spectator';
-    this.spectators?.push(spectator);
-    spectator.send({
-      event: Events.Create_Board,
+  private broadcastBoard() {
+    this.sendToAll({
+      event: Events.CREATE_BOARD,
       gameId: this.gameId,
       boardFEN: this.Chessobject.fen(),
       turn: this.turn,
@@ -101,20 +67,79 @@ export class GameObect {
       spectatorCount: this.spectators.length,
     });
   }
-  broadcastSpectatorCount(){
-     this.spectators.forEach((specator) =>
+
+  private getAllSockets(): SocketManager[] {
+    return [
+      this.whitePlayerSocket,
+      this.blackPlayerSocket,
+      ...this.spectators,
+    ].filter(Boolean) as SocketManager[];
+  }
+
+  private sendToAll(data: any) {
+    this.getAllSockets().forEach((s) => s.send(data));
+  }
+  addPlayer(player: SocketManager) {
+    if (this.whitePlayerId && this.blackPlayerId) {
+      return player.send({ event: Events.COMMON, message: "Game is full!" });
+    }
+
+    player.gameId = this.gameId!;
+
+    if (!this.whitePlayerId) {
+      this.whitePlayerId = player.userId;
+      this.whitePlayerSocket = player;
+      player.role = "white";
+      this.turn = Turn.WHITE;
+
+      return player.send({
+        event: Events.WAITING_OPPONENT,
+        message: "Waiting for opponent...",
+      });
+    }
+
+    this.blackPlayerId = player.userId;
+    this.blackPlayerSocket = player;
+    player.role = "black";
+
+    this.clock = { WHITE: GAME_TIME, BLACK: GAME_TIME };
+    this.lastMoveTimestamp = Date.now();
+
+    this.broadcastBoard();
+  }
+
+  addSpectators(spectator: SocketManager) {
+    spectator.role = "spectator";
+    this.spectators?.push(spectator);
+    spectator.send({
+      event: Events.CREATE_BOARD,
+      gameId: this.gameId,
+      boardFEN: this.Chessobject.fen(),
+      turn: this.turn,
+      clock: this.clock,
+      timestamp: Date.now(),
+      spectatorCount: this.spectators.length,
+    });
+    this.broadcastSpectatorCount();
+    // notify all with the updated spectator count
+  }
+  broadcastSpectatorCount(message?: string) {
+    this.spectators.forEach((specator) =>
       specator.send({
-        event: Events.Common,
+        event: Events.COMMON,
         spectatorCount: this.spectators.length,
+        message,
       }),
     );
     this.blackPlayerSocket?.send({
-      event: Events.Common,
+      event: Events.COMMON,
       spectatorCount: this.spectators.length,
+      message,
     });
     this.whitePlayerSocket?.send({
-      event: Events.Common,
+      event: Events.COMMON,
       spectatorCount: this.spectators.length,
+      message,
     });
   }
   makeMove(
@@ -122,61 +147,43 @@ export class GameObect {
     move: { from: string; to: string },
     timestamp: number,
   ) {
-    if (sender.gameId !== this.gameId) return;
-    if (sender.role == 'spectator') return;
+    if (sender.gameId !== this.gameId || sender.role === "spectator") return;
 
-    const isWhite = sender.userId === this.whitePlayerId;
-    const isBlack = sender.userId === this.blackPlayerId;
-
+    const isWhiteTurn = this.turn === Turn.WHITE;
     if (
-      (this.turn === Turn.WHITE && !isWhite) ||
-      (this.turn === Turn.BLACK && !isBlack)
+      (isWhiteTurn && sender.userId !== this.whitePlayerId) ||
+      (!isWhiteTurn && sender.userId !== this.blackPlayerId)
     ) {
-      sender.send({ event: Events.Illegal_Move });
-      return;
-    }
-    const result = this.Chessobject.move(move);
-    if (!result) {
-      sender.send({ event: Events.Illegal_Move });
-      return;
+      return sender.send({ event: Events.ILLIGAL_MOVE });
     }
 
-    this.calculateRemainigTime(this.turn!, timestamp);
+    const result = this.Chessobject.move(move);
+    if (!result) return sender.send({ event: Events.ILLIGAL_MOVE });
+
+    this.updateClock(this.turn!, timestamp);
+    this.turn = isWhiteTurn ? Turn.BLACK : Turn.WHITE;
     this.lastMoveTimestamp = timestamp;
-    this.turn = this.turn === Turn.WHITE ? Turn.BLACK : Turn.WHITE;
-    if (this.Chessobject.isCheck()) {
-      this.broadCast(this.turn, Events.Checked);
-      return;
-    }
 
     if (this.Chessobject.isGameOver()) {
-      this.broadCast(this.turn, Events.End_Game);
-      return;
+      return this.sendToAll({ event: Events.END_GAME });
     }
 
-    // 7. Normal move broadcast
-    this.broadCast(this.turn, Events.Move);
+    if (this.Chessobject.isCheck()) {
+      return this.sendToAll({ event: Events.CHECKED, turn: this.turn });
+    }
+
+    this.sendToAll({ event: Events.MOVE, turn: this.turn, clock: this.clock });
   }
 
-  calculateRemainigTime(turn: Turn, timestamp: number) {
-    if (turn == Turn.BLACK && this.lastMoveTimestamp) {
-      const remainingTime = this.clock
-        ? this.clock.BLACK - (timestamp - this.lastMoveTimestamp)
-        : 0;
-      this.clock = {
-        BLACK: remainingTime,
-        WHITE: this.clock?.WHITE ?? 30000,
-      };
-    } else if (turn == Turn.WHITE && this.lastMoveTimestamp) {
-      const remainingTime = this.clock
-        ? this.clock.WHITE - (timestamp - this.lastMoveTimestamp)
-        : 0;
-      this.clock = {
-        BLACK: this.clock?.BLACK ?? 30000,
-        WHITE: remainingTime,
-      };
-    }
+  private updateClock(turn: Turn, now: number) {
+    if (!this.clock || !this.lastMoveTimestamp) return;
+
+    const diff = now - this.lastMoveTimestamp;
+
+    if (turn === Turn.WHITE) this.clock.WHITE -= diff;
+    else this.clock.BLACK -= diff;
   }
+
   broadCast(turn: Turn, event: Events) {
     this.blackPlayerSocket?.send({
       event,
@@ -206,45 +213,46 @@ export class GameObect {
       }),
     );
   }
- resumeGame(player: SocketManager,gameId:string) {
-  if (gameId !== this.gameId) return;
+  resumeGame(player: SocketManager, gameId: string) {
+    if (gameId !== this.gameId || !this.disconnectedPlayerInfo) return;
 
-  let target: "white" | "black" | null = null;
+    if (player.userId !== this.disconnectedPlayerInfo.playerId) return;
 
-  if (gameId === this.whitePlayerId) target = "white";
-  else if (gameId === this.blackPlayerId) target = "black";
-  else return;
-  player.gameId = gameId;
-  if (target === "white") this.whitePlayerSocket = player;
-  else this.blackPlayerSocket = player;
+    clearTimeout(this.disconnectedPlayerInfo.timeOutId);
+    this.disconnectedPlayerInfo = undefined;
 
-  player.send({
-    event: Events.Resume,
-    gameId: this.gameId,
-    boardFEN: this.Chessobject.fen(),
-    turn: this.turn,
-    clock: this.clock,
-    timestamp: Date.now(),
-  });
-}
+    player.gameId = gameId;
 
+    if (player.userId === this.whitePlayerId) this.whitePlayerSocket = player;
+    else this.blackPlayerSocket = player;
 
-  sendChat(sender: SocketManager,message:string) {
-        if (sender.gameId !== this.gameId) return;
-        this.broadCastChat(Events.Chat,message);
+    player.send({
+      event: Events.RESUME,
+      boardFEN: this.Chessobject.fen(),
+      turn: this.turn,
+      clock: this.clock,
+      timestamp: Date.now(),
+    });
+
+    this.sendToAll({ event: Events.PLAYER_RECONNECTED,playerId:player.userId });
   }
-  broadCastChat(event:Events,message:string){
-        this.blackPlayerSocket?.send({
+
+  sendChat(sender: SocketManager, message: string) {
+    if (sender.gameId !== this.gameId) return;
+    this.broadCastChat(Events.CHAT, message);
+  }
+  broadCastChat(event: Events, message: string) {
+    this.blackPlayerSocket?.send({
       event,
       gameId: this.gameId,
       timestamp: Date.now(),
-      message
+      message,
     });
     this.whitePlayerSocket?.send({
       event,
       gameId: this.gameId,
       timestamp: Date.now(),
-      message
+      message,
     });
     // spectators
     this.spectators.forEach((spectator) =>
@@ -252,21 +260,65 @@ export class GameObect {
         event,
         gameId: this.gameId,
         timestamp: Date.now(),
-        message
+        message,
       }),
     );
   }
-  handlePlayerDisconnect(player: SocketManager) {
-  if (player.userId === this.whitePlayerId) {
-    this.whitePlayerSocket = undefined;
-  } else if (player.userId === this.blackPlayerId) {
-    this.blackPlayerSocket = undefined;
-  } else {
-    // spectator
-    this.spectators = this.spectators.filter(s => s !== player);
-    this.broadcastSpectatorCount();
+  broadCastToAll(data: any) {
+    this.whitePlayerSocket?.send(data);
+    this.blackPlayerSocket?.send(data);
+    this.spectators.forEach((s) => s.send(data));
   }
-}
+  handlePlayerDisconnect(player: SocketManager) {
+    const color: PlayerColor | null =
+      player.userId === this.whitePlayerId
+        ? "white"
+        : player.userId === this.blackPlayerId
+          ? "black"
+          : null;
+
+    if (!color) {
+      this.spectators = this.spectators.filter((s) => s !== player);
+      return this.broadcastSpectatorCount();
+    }
+
+    if (this.disconnectedPlayerInfo) {
+      return this.sendToAll({
+        event: Events.END_GAME,
+        reason: "DRAW_BOTH_DISCONNECTED",
+      });
+    }
+
+    const deadline = Date.now() + DISCONNECT_TIMEOUT;
+
+    const timeoutId = setTimeout(
+      () => this.forfeitPlayer(color),
+      DISCONNECT_TIMEOUT,
+    );
+
+    this.disconnectedPlayerInfo = {
+      playerId: player.userId,
+      color,
+      timeOutId: timeoutId,
+      deadLine: deadline,
+    };
+
+    this.sendToAll({
+      event: Events.PLAYER_DISCONNECTED,
+      playerColor: color,
+      deadline,
+    });
+  }
+
+  forfeitPlayer(color: PlayerColor) {
+    const winner = color === "white" ? Turn.BLACK : Turn.WHITE;
+
+    this.sendToAll({
+      event: Events.END_GAME,
+      reason: "FORFEIT",
+      winner,
+    });
+  }
 }
 
 // to resume the game userId and gameId is required

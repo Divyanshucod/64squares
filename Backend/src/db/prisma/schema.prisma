@@ -30,6 +30,8 @@ game table
 -- gameid
 -- whiteplayerId
 -- blackPlayerId
+-- match status
+-- who won (No_one, white, black)
 
 moves table
 -- serial no
