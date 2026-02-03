@@ -8,6 +8,9 @@ export function handleMessage(
 ) {
   const { gameId, event } = data;
 
+  if(!gameId && event == Events.New_Game){
+     storeInstance.createGame(socketManager)
+  }
   if (!gameId) {
     socketManager.send({
       event: "ERROR",
@@ -27,17 +30,25 @@ export function handleMessage(
 
   switch (event) {
     case Events.Resume:
-      game.resumeGame(socketManager);
+      game.resumeGame(socketManager,gameId);
       break;
 
     case Events.Move:
-      game.makeMove(socketManager, data);
+      game.makeMove(socketManager, data.move,data.timestamp);
       break;
 
     case Events.Chat:
       game.sendChat(socketManager, data.message);
       break;
+    
+    case Events.Join_Game:
+      game.addPlayer(socketManager);
+      break;
 
+    case Events.Spectator:
+      game.addSpectators(socketManager);
+      break;
+      
     default:
       socketManager.send({
         event: "ERROR",

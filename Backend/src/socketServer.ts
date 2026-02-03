@@ -32,8 +32,11 @@ export class SocketManager {
   }
 
    handleDisconnect() {
-    if (!this.gameId) return;
-    const game = storeInstance.getGame(this.gameId);
-    game?.resumeGame(this);
-  }
+  if (!this.gameId) return;
+
+  const game = storeInstance.getGame(this.gameId);
+  if (!game) return;
+
+  game.handlePlayerDisconnect(this);
+}
 }

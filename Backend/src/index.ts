@@ -3,8 +3,6 @@ import cors from "cors";
 import { GameRouter } from "./routes/game.js";
 import { WebSocketServer } from "ws";
 import { SocketManager } from "./socketServer.js";
-import { storeInstance } from "./store.js";
-import { Events } from "./gameManager.js";
 import { handleMessage } from "./webSocket/handleMessage.js";
 
 const PORT = 3000;
@@ -53,18 +51,3 @@ function authenticate(ws:any,req:any){
     return undefined;
   }
 }
-function disConnected(ws:any,req:any){
-  const fullUrl = new URL(req.url!, `http://${req.headers.host}`);
-
-  // find a game first
-  const game = storeInstance.Games?.find(game => game.spectators.forEach(spectator => spectator.socket == ws))
-  if (!game) {
-    ws.close(1008, "No such game exits"); // Policy Violation
-    return;
-}
-   game.spectators = game.spectators.filter(spectator => spectator.socket != ws)
-}
-// resume the game
-// database conection and store  moves there
-// When ever someone loses the connect (player then resume), spectator then reduce send the updated count
-// what about spectators name or dp same for players
