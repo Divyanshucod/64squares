@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres
+    container_name: 64square
+    environment:
+      POSTGRES_USER: 64squares
+      POSTGRES_PASSWORD: chess123
+      POSTGRES_DB: chessDB
+    ports:
+      - "5432:5432"
+    volumes:
+      - 64square:/var/lib/postgresql/data
+
+volumes:
+  64square:

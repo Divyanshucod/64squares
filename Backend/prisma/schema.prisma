@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum MatchStatus {
+  WAITING
+  ONGOING
+  FINISHED
+}
+
+enum Winner {
+  NO_ONE
+  WHITE
+  BLACK
+}
+
+model User {
+  id            Int     @id @default(autoincrement())
+  userId        String  @unique
+  username      String
+  profilePic    String?
+
+  whiteGames    Game[]  @relation("WhitePlayer")
+  blackGames    Game[]  @relation("BlackPlayer")
+  moves         Move[]
+
+  createdAt     DateTime @default(now())
+}
+
+model Game {
+  id              Int         @id @default(autoincrement())
+  gameId          String      @unique
+
+  whitePlayerId   Int
+  blackPlayerId   Int
+
+  whitePlayer     User        @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  blackPlayer     User        @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+
+  status          MatchStatus
+  winner          Winner      @default(NO_ONE)
+
+  moves           Move[]
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+
+model Move {
+  id          Int      @id @default(autoincrement())
+
+  gameId      Int
+  playerId    Int
+
+  fromSquare  String
+  toSquare    String
+
+  game        Game     @relation(fields: [gameId], references: [id])
+  player      User     @relation(fields: [playerId], references: [id])
+
+  createdAt   DateTime @default(now())
+}
+
