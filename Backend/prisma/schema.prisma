@@ -42,11 +42,11 @@ model Game {
   id              Int         @id @default(autoincrement())
   gameId          String      @unique
 
-  whitePlayerId   Int
-  blackPlayerId   Int
+  whitePlayerId   String
+  blackPlayerId   String
 
-  whitePlayer     User        @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
-  blackPlayer     User        @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  whitePlayer     User        @relation("WhitePlayer", fields: [whitePlayerId], references: [userId])
+  blackPlayer     User        @relation("BlackPlayer", fields: [blackPlayerId], references: [userId])
 
   status          MatchStatus
   winner          Winner      @default(NO_ONE)
@@ -61,14 +61,14 @@ model Game {
 model Move {
   id          Int      @id @default(autoincrement())
 
-  gameId      Int
-  playerId    Int
+  gameId      String
+  playerId    String
 
   fromSquare  String
   toSquare    String
 
-  game        Game     @relation(fields: [gameId], references: [id])
-  player      User     @relation(fields: [playerId], references: [id])
+  game        Game     @relation(fields: [gameId], references: [gameId])
+  player      User     @relation(fields: [playerId], references: [userId])
 
   createdAt   DateTime @default(now())
 }

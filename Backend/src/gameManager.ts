@@ -91,7 +91,8 @@ export class GameObect {
       this.whitePlayerSocket = player;
       player.role = "white";
       this.turn = Turn.WHITE;
-
+      // push add player to the game table
+      
       return player.send({
         event: Events.WAITING_OPPONENT,
         message: "Waiting for opponent...",
