@@ -1,7 +1,4 @@
-// Tomorrow's work:
--- DB implementation
--- testing all features 
--- frontend creation (basic one for verification everthing is working)
--- add moves or check for promotion of pieces and also let user chose it from frontend.
-
-
+// Fixes needed
+--- Clear/Remove the game once the game finished or no one is there in the game 
+--- Return moves with promotion options if pawn was promoted
+--- Send message and spectator details/player details in more robust manner
