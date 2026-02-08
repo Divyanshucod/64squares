@@ -12,7 +12,6 @@ class Store {
     const newChess = new GameObect(gameId);
     this.Games?.push(newChess);
     newChess.addPlayer(playerSocket);
-    // newChess.broadCast(Turn.WHITE,Events.Waiting_Opponent)
   }
   removeGame(gameId: string) {
     const remainingGames = this.Games?.filter((game) => game.gameId != gameId);
@@ -20,6 +19,16 @@ class Store {
   }
   getGame(gameId: string) {
     return this.Games?.find((game) => game.gameId == gameId);
+  }
+
+
+  autoMatch(playerSocket:SocketManager){
+     const anygame = this.Games?.find(game => game.blackPlayerId == undefined);
+     if(!anygame){
+      throw new Error("Auto match can't happen as no available for auto match!")
+     }
+     anygame.addPlayer(playerSocket)
+     return;
   }
 }
 

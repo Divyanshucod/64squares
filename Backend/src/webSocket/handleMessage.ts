@@ -8,8 +8,11 @@ export function handleMessage(
 ) {
   const { gameId, event } = data;
 
-  if(!gameId && event == Events.NEW_GAME){
-     storeInstance.createGame(socketManager)
+  if(event == Events.NEW_GAME){
+    return storeInstance.createGame(socketManager)
+  }
+  if(event == Events.AUTO_MATCH){
+    return storeInstance.autoMatch(socketManager)
   }
   if (!gameId) {
     socketManager.send({

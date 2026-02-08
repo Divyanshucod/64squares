@@ -1,5 +1,6 @@
 import { Chess } from "chess.js";
 import { SocketManager } from "./socketServer.js";
+import { addMove, createGame, gameDraw,updateGame, updateGameStatus } from "./db/dbFunctions.js";
 type PlayerColor = "white" | "black";
 export enum Turn {
   WHITE = "WHITE",
@@ -24,6 +25,7 @@ export enum Events {
   PLAYER_DISCONNECTED = "PLAYER_DISCONNECTED",
   PLAYER_RECONNECTED = "PLAYER_RECONNECTED",
   SPECTATOR = "SPECTATOR",
+  AUTO_MATCH = "AUTO_MATCH"
 }
 type DisconnectInfo = {
   playerId: string;
@@ -79,11 +81,12 @@ export class GameObect {
   private sendToAll(data: any) {
     this.getAllSockets().forEach((s) => s.send(data));
   }
-  addPlayer(player: SocketManager) {
+  async addPlayer(player: SocketManager) {
     if (this.whitePlayerId && this.blackPlayerId) {
       return player.send({ event: Events.COMMON, message: "Game is full!" });
     }
 
+    
     player.gameId = this.gameId!;
 
     if (!this.whitePlayerId) {
@@ -92,7 +95,11 @@ export class GameObect {
       player.role = "white";
       this.turn = Turn.WHITE;
       // push add player to the game table
-      
+      try {
+          await this.handlerDB(Events.NEW_GAME,this.whitePlayerSocket);
+      } catch (error:any) {
+         return player.send({event:Events.COMMON,message:error.message})
+      }
       return player.send({
         event: Events.WAITING_OPPONENT,
         message: "Waiting for opponent...",
@@ -105,12 +112,13 @@ export class GameObect {
 
     this.clock = { WHITE: GAME_TIME, BLACK: GAME_TIME };
     this.lastMoveTimestamp = Date.now();
-
+    await this.handlerDB(Events.JOIN_GAME,this.blackPlayerSocket);
     this.broadcastBoard();
   }
 
   addSpectators(spectator: SocketManager) {
     spectator.role = "spectator";
+    spectator.gameId = this.gameId!;
     this.spectators?.push(spectator);
     spectator.send({
       event: Events.CREATE_BOARD,
@@ -160,12 +168,16 @@ export class GameObect {
 
     const result = this.Chessobject.move(move);
     if (!result) return sender.send({ event: Events.ILLIGAL_MOVE });
+    // store move
+    this.handlerDB(Events.MOVE,sender,move)
 
     this.updateClock(this.turn!, timestamp);
     this.turn = isWhiteTurn ? Turn.BLACK : Turn.WHITE;
     this.lastMoveTimestamp = timestamp;
 
     if (this.Chessobject.isGameOver()) {
+      // update the status of the game in db
+      this.handlerDB(Events.END_GAME,sender)
       return this.sendToAll({ event: Events.END_GAME });
     }
 
@@ -223,10 +235,9 @@ export class GameObect {
     this.disconnectedPlayerInfo = undefined;
 
     player.gameId = gameId;
-
     if (player.userId === this.whitePlayerId) this.whitePlayerSocket = player;
     else this.blackPlayerSocket = player;
-
+    // update new playerId
     player.send({
       event: Events.RESUME,
       boardFEN: this.Chessobject.fen(),
@@ -279,11 +290,16 @@ export class GameObect {
           : null;
 
     if (!color) {
-      this.spectators = this.spectators.filter((s) => s !== player);
+      this.spectators = this.spectators.filter((s) => s.userId !== player.userId);
       return this.broadcastSpectatorCount();
     }
 
     if (this.disconnectedPlayerInfo) {
+      try {
+           gameDraw(player.gameId!,'FINISHED');
+      } catch (error:any) {
+           player.send({event:Events.COMMON,message:error.message})
+      }
       return this.sendToAll({
         event: Events.END_GAME,
         reason: "DRAW_BOTH_DISCONNECTED",
@@ -311,14 +327,44 @@ export class GameObect {
     });
   }
 
-  forfeitPlayer(color: PlayerColor) {
+  async forfeitPlayer(color: PlayerColor) {
     const winner = color === "white" ? Turn.BLACK : Turn.WHITE;
-
+    if(winner == Turn.BLACK){
+      await this.handlerDB(Events.END_GAME,this.blackPlayerSocket!)
+    }
+    else {
+      await this.handlerDB(Events.END_GAME,this.whitePlayerSocket!)
+    }
     this.sendToAll({
       event: Events.END_GAME,
       reason: "FORFEIT",
       winner,
     });
+  }
+  async handlerDB(processEvent:Events,playerInfo:SocketManager,move?:{from:string,to:string}){
+    try {
+      switch(processEvent){
+        case Events.NEW_GAME:
+          await createGame(playerInfo.gameId!, playerInfo.userId);
+          break;
+
+        case Events.JOIN_GAME:
+          await updateGame(playerInfo.gameId!, playerInfo.userId);
+          break;
+
+        case Events.MOVE:
+          await addMove(playerInfo.userId,move!,playerInfo.gameId!)
+          break;
+
+        case Events.END_GAME:
+          await updateGameStatus(playerInfo.gameId!,'FINISHED',playerInfo.role!)
+          break;
+        default:
+          break;
+      }
+    } catch (error:any) {
+     throw new Error(error.message)
+    }
   }
 }
 

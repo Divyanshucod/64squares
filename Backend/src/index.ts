@@ -5,6 +5,7 @@ import { WebSocketServer } from "ws";
 import { SocketManager } from "./socketServer.js";
 import { handleMessage } from "./webSocket/handleMessage.js";
 
+
 const PORT = 3000;
 const app = express();
 app.use(cors());
@@ -12,7 +13,6 @@ app.use(express.json());
 const wss = new WebSocketServer({ port: 3001 });
 app.use("/game", GameRouter);
 // websocket server creation
-
 wss.on("connection", (ws, req) => {
   const socketManager = authenticate(ws, req);
   if (!socketManager) return;
@@ -23,10 +23,12 @@ wss.on("connection", (ws, req) => {
     try {
       const data = JSON.parse(message.toString());
       handleMessage(socketManager, data);
-    } catch {
+    } catch (error:any) {
+      console.log(error);
+      
       socketManager.send({
         event: "ERROR",
-        message: "Invalid JSON"
+        message: error.message
       });
     }
   });

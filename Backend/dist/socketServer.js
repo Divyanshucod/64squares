@@ -1,8 +1,13 @@
 import WebSocket from "ws";
+import { storeInstance } from "./store.js";
 export class SocketManager {
     socket;
-    constructor(ws) {
+    userId;
+    gameId;
+    role;
+    constructor(ws, userId) {
         this.socket = ws;
+        this.userId = userId;
     }
     send(data) {
         if (this.socket) {
@@ -15,6 +20,14 @@ export class SocketManager {
                 console.log(data + "From manager");
             });
         }
+    }
+    handleDisconnect() {
+        if (!this.gameId)
+            return;
+        const game = storeInstance.getGame(this.gameId);
+        if (!game)
+            return;
+        game.handlePlayerDisconnect(this);
     }
 }
 //# sourceMappingURL=socketServer.js.map

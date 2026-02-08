@@ -42,11 +42,11 @@ model Game {
   id              Int         @id @default(autoincrement())
   gameId          String      @unique
 
-  whitePlayerId   String
-  blackPlayerId   String
+  whitePlayerId   String?
+  blackPlayerId   String?
 
-  whitePlayer     User        @relation("WhitePlayer", fields: [whitePlayerId], references: [userId])
-  blackPlayer     User        @relation("BlackPlayer", fields: [blackPlayerId], references: [userId])
+  whitePlayer     User?        @relation("WhitePlayer", fields: [whitePlayerId], references: [userId])
+  blackPlayer     User?        @relation("BlackPlayer", fields: [blackPlayerId], references: [userId])
 
   status          MatchStatus
   winner          Winner      @default(NO_ONE)
