@@ -1,14 +1,13 @@
 
-
 import './App.css'
-import HeroSection from './components/LandingPage/HeroSection'
+import MainSection from './components/LandingPage2/MainSection'
+import './index.css'
 
 function App() {
-
   return (
-    <>
-      <HeroSection/>
-    </>
+    <div className="w-full bg-chess-darker">
+      <MainSection/>
+    </div>
   )
 }
 

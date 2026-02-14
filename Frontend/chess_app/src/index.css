@@ -2,3 +2,61 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  background-color: #0B0B0D;
+  color: #F2F2F2;
+}
+
+.glassmorphic {
+  background: rgba(26, 26, 31, 0.169);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(217, 217, 217, 0.2);
+  border-radius: 12px;
+}
+
+.glassmorphic-light {
+  background: rgba(42, 42, 48, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(191, 195, 201, 0.15);
+  border-radius: 12px;
+}
+
+.glow-effect {
+  box-shadow: 0 0 30px rgba(242, 242, 242, 0.1), inset 0 1px 1px rgba(242, 242, 242, 0.05);
+}
+
+.main-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.main-section::before {
+ content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('/MainSection.jpg');
+  background-size: cover;
+  background-position: center;
+  filter: blur(2px);
+  transform: scale(1.05); /* Prevents edge cutoff after blur */
+  z-index: -1;
+}
+
+.main-section::after {
+content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(11, 11, 13, 0.65); /* dark overlay */
+  z-index: -1;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.mainsection-text {
+  text-shadow: 0 0 20px rgba(242, 242, 242, 0.1);
+}
