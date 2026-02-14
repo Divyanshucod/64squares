@@ -1,3 +1,5 @@
+import Button from "../UI/Button";
+
 function Hero() {
   const features = [
     {
@@ -67,9 +69,7 @@ function Hero() {
           <p className="text-chess-text/80 mb-8 text-lg">
             Join thousands of players already competing on 64Squares
           </p>
-          <button className="px-10 py-4 bg-linear-to-r from-chess-text to-chess-light text-chess-darker font-bold rounded-lg hover:shadow-xl hover:shadow-chess-light/30 transition-all duration-300 hover:-translate-y-1 text-lg">
-            Get Started Now
-          </button>
+          <Button>Get Started Now</Button>
         </div>
       </div>
     </section>

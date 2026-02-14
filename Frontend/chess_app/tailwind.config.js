@@ -20,10 +20,15 @@ module.exports = {
           '0%, 100%': { 'box-shadow': '0 0 20px rgba(242, 242, 242, 0.1)' },
           '50%': { 'box-shadow': '0 0 40px rgba(242, 242, 242, 0.2)' },
         },
+         borderMove: {
+        "0%": { transform: "translateX(-100%)" },
+        "100%": { transform: "translateX(100%)" },
+      },
       },
       animation: {
         float: 'float 6s ease-in-out infinite',
         glow: 'glow 3s ease-in-out infinite',
+         borderMove: "borderMove 3s linear infinite",
       },
     },
   },

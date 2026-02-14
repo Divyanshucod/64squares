@@ -15,7 +15,9 @@ function Footer() {
         <div className="grid md:grid-cols-5 gap-12 mb-12">
           {/* Brand Section */}
           <div className="col-span-1">
-            <h3 className="text-2xl font-bold text-chess-light mb-4">64Squares</h3>
+            <div className="w-25 h-18 flex items-center cursor-pointer hover:scale-105 transition-transform duration-300">
+          <img src="/Logo-2.png" alt="Logo" className="h-full object-contain"/>
+        </div>
             <p className="text-chess-text/70 text-sm leading-relaxed">
               Master chess. Join a global community of players and elevate your game.
             </p>
@@ -53,30 +55,6 @@ function Footer() {
               </ul>
             </div>
           ))}
-        </div>
-
-        {/* Newsletter & CTA */}
-        <div className="glassmorphic-light p-8 rounded-xl mb-12 glow-effect">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h3 className="text-2xl font-bold text-chess-light mb-2">
-                Stay Updated
-              </h3>
-              <p className="text-chess-text/70">
-                Get the latest chess news, tournaments, and exclusive offers
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-3 bg-chess-dark/50 border border-chess-border/30 rounded-lg text-chess-light placeholder-chess-text/50 focus:outline-none focus:border-chess-border/80 focus:ring-1 focus:ring-chess-text/20 transition-all"
-              />
-              <button className="px-6 py-3 bg-linear-to-r from-chess-text to-chess-light text-chess-darker font-semibold rounded-lg hover:shadow-lg hover:shadow-chess-light/20 transition-all duration-300 hover:-translate-y-0.5">
-                Subscribe
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Bottom Footer */}

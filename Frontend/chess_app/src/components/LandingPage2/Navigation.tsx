@@ -1,3 +1,4 @@
+import Button from "../UI/Button";
 
 function Navigation(){
 
@@ -20,16 +21,8 @@ function Navigation(){
         </div>
         
         <div className="flex gap-4 items-center">
-          <button 
-            className="px-6 py-2 text-chess-text hover:text-chess-light font-medium text-sm transition-colors duration-300 border border-chess-border/40 rounded-lg hover:border-chess-border/80"
-          >
-            Login
-          </button>
-          <button 
-            className="px-6 py-2 bg-linear-to-r from-chess-text to-chess-light text-chess-darker font-semibold text-sm rounded-lg hover:shadow-lg hover:shadow-chess-light/20 transition-all duration-300 hover:-translate-y-0.5"
-          >
-            Sign Up
-          </button>
+          <Button className="bg-white text-black">Login</Button>
+          <Button className="bg-white text-black">Sign Up</Button>
         </div>
       </div>
     </nav>

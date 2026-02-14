@@ -3,13 +3,13 @@ import Hero from "./Hero";
 import Promotions from "./Promotions";
 import Footer from "./Footer";
 
-function MainSection(){
+function LandingPage(){
     return <>
       <div className="min-w-screen min-h-screen bg-chess-darker">
         <div className="main-section min-h-screen w-full flex flex-col pt-24">
           <Navigation/>
           
-          <div className="flex-1 h-full w-full flex flex-col justify-center items-center px-8 relative z-10 text-cyan-50">
+          <div className="flex-1 h-full w-full flex flex-col justify-center items-center px-8 relative z-10 text-white">
             <div className="text-center space-y-8 max-w-4xl">
               <div className="mainsection-text">
                 <h1 className="font-mono text-6xl md:text-7xl font-bold text-chess-light mb-4 animate-fade-in">
@@ -43,4 +43,4 @@ function MainSection(){
     </>
 }
 
-export default MainSection;
+export default LandingPage;
