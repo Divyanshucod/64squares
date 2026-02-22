@@ -1,6 +1,8 @@
+import { useNavigate } from "react-router-dom";
 import Button from "../UI/Button";
 
 function Navigation(){
+  const navigate = useNavigate();
 
   return <>
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between w-full px-8 py-4 text-chess-light">
@@ -21,8 +23,8 @@ function Navigation(){
         </div>
         
         <div className="flex gap-4 items-center">
-          <Button className="bg-white text-black">Login</Button>
-          <Button className="bg-white text-black">Sign Up</Button>
+          <Button className="bg-white text-black" onClick={() => navigate("/login")}>Login</Button>
+          <Button className="bg-white text-black" onClick={() => navigate("/signup")}>Sign Up</Button>
         </div>
       </div>
     </nav>

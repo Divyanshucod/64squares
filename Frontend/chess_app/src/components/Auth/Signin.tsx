@@ -181,7 +181,7 @@ function SigninPage(){
                     <div className="text-center mt-8">
                         <p className="text-chess-text/70 text-sm">
                             Already have an account?{' '}
-                            <a href="#" className="text-chess-light font-semibold hover:underline transition-colors">
+                            <a href="/login" className="text-chess-light font-semibold hover:underline transition-colors">
                                 Sign in
                             </a>
                         </p>
