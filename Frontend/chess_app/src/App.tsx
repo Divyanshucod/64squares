@@ -2,6 +2,7 @@
 import './App.css'
 import LoginPage from './components/Auth/Login'
 import SigninPage from './components/Auth/Signin'
+import HistoryPage from './components/HistorySection/HistoryPage'
 import LandingPage from './components/LandingPage2/MainSection'
 import Navigation from './components/LandingPage2/Navigation'
 import GameBoard from './components/MainGameSection/GameBoard'
@@ -18,6 +19,7 @@ function App() {
           <Route path="/login" element={<LoginPage/>}/>
           <Route path="/signup" element={<SigninPage/>}/>
           <Route path="/game" element={<GameLandingPage/>}/>
+          <Route path='/history' element={<HistoryPage/>}/>
         </Routes>
       </BrowserRouter>
     </div>
